@@ -1,0 +1,39 @@
+trigger:
+  - main  # Change if your default branch is different
+
+variables:
+  azureContainerRegistry: ProjectsForResume.azurecr.io
+  imageName: myapp
+
+stages:
+  - stage: Build
+    jobs:
+      - job: BuildAndPush
+        pool:
+          vmImage: ubuntu-latest
+        steps:
+          - task: Docker@2
+            inputs:
+              containerRegistry: 'AzureConnection'
+              repository: '$(imageName)'
+              command: 'buildAndPush'
+              Dockerfile: '**/Dockerfile'
+              tags: |
+                latest
+
+  - stage: Deploy
+    dependsOn: Build
+    jobs:
+      - deployment: DeployWebApp
+        environment: 'production'
+        pool:
+          vmImage: ubuntu-latest
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureWebAppContainer@1
+                  inputs:
+                    azureSubscription: 'AzureConnection'
+                    appName: 'tododocker'
+                    containers: '$(azureContainerRegistry)/$(imageName):latest'
